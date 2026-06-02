@@ -70,6 +70,11 @@ void bacaFileDatabase() {
     
     if (file.is_open()) {
         while (getline(file, baris) && jumlahDB < MAX_DB) {
+            // --- PERBAIKAN FATAL: Lewati baris jika kosong agar tidak crash ---
+            if (baris.empty()) {
+                continue; 
+            }
+            
             stringstream ss(baris);
             Pasien p;
             getline(ss, p.nik, ',');
@@ -77,7 +82,13 @@ void bacaFileDatabase() {
             
             string umurStr;
             getline(ss, umurStr, ',');
-            p.umur = stoi(umurStr); // konversi string ke int
+            
+            // --- PERBAIKAN FATAL: Pastikan umurStr ada isinya sebelum di-stoi ---
+            if (!umurStr.empty()) {
+                p.umur = stoi(umurStr); 
+            } else {
+                p.umur = 0; // Beri nilai 0 jika gagal
+            }
             
             getline(ss, p.penyakit, ',');
             
