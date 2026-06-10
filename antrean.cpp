@@ -5,55 +5,40 @@
 
 using namespace std;
 
-// ==========================================
 // 1. RECORD (Struct)
-// ==========================================
 struct Pasien {
     string nik;
     string nama;
     int umur;
     string penyakit;
-    int prioritas; // 1: Darurat (masuk antrean depan), 2: Reguler
+    int prioritas;
 };
 
-// ==========================================
-// 2. POINTER (Node Linked List untuk Antrean)
-// ==========================================
-struct Node {
+// 2. POINTER
+struct AntreanPasien {
     Pasien data;
-    Node* next;
+    AntreanPasien* next;
 };
 
-// Variabel Global
-Node* head = NULL; 
+AntreanPasien* head = NULL; 
 int jumlahAntrean = 0;
 
-// ==========================================
-// 3. ARRAY (Menyimpan Database Rekam Medis)
-// ==========================================
+// 3. ARRAY
 const int MAX_DB = 100;
 Pasien databasePasien[MAX_DB];
 int jumlahDB = 0;
 
 
-// ==========================================
 // 4. REKURSI & 5. RECURRENCE
-// Relasi Berulang: W(n) = W(n-1) + 15, dengan W(0) = 0
-// Fungsi: Menghitung total waktu tunggu berdasarkan sisa antrean
-// ==========================================
-int hitungWaktuTunggu(int n) {
-    if (n == 0) {
-        return 0; // Base case
+int hitungWaktuTunggu(int posisi) {
+    if (posisi == 0) {
+        return 0; // Base case: Pasien pertama langsung dilayani
     }
-    return 15 + hitungWaktuTunggu(n - 1); // Rekursi: 15 menit per pasien
+    return 15 + hitungWaktuTunggu(posisi - 1); // Rekursi: 15 menit per pasien di depannya
 }
 
-
-// ==========================================
-// 6. FILE I/O (Menyimpan & Membaca .txt)
-// ==========================================
+// 6. FILE I/O
 void simpanKeFile(Pasien p) {
-    // Mode ios::app untuk append (menambahkan di baris bawah)
     ofstream file("rekam_medis.txt", ios::app);
     if (file.is_open()) {
         file << p.nik << "," << p.nama << "," << p.umur << "," << p.penyakit << "\n";
@@ -77,7 +62,7 @@ void bacaFileDatabase() {
             
             string umurStr;
             getline(ss, umurStr, ',');
-            p.umur = stoi(umurStr); // konversi string ke int
+            if (!umurStr.empty()) p.umur = stoi(umurStr); 
             
             getline(ss, p.penyakit, ',');
             
@@ -88,40 +73,64 @@ void bacaFileDatabase() {
     }
 }
 
-
-// ==========================================
-// FUNGSI OPERASI POINTER (Priority Queue)
-// ==========================================
 void tambahAntrean() {
     Pasien p;
     cout << "\n--- Tambah Antrean Pasien ---\n";
     cout << "NIK         : "; cin >> p.nik;
-    cin.ignore(); // Membersihkan buffer
+    cin.ignore();
     cout << "Nama        : "; getline(cin, p.nama);
     cout << "Umur        : "; cin >> p.umur;
     cin.ignore();
     cout << "Keluhan     : "; getline(cin, p.penyakit);
     cout << "Status (1: Darurat, 2: Reguler): "; cin >> p.prioritas;
 
-    // Alokasi memori Pointer
-    Node* newNode = new Node();
-    newNode->data = p;
-    newNode->next = NULL;
+    AntreanPasien* pasienBaru = new AntreanPasien();
+    pasienBaru->data = p;
+    pasienBaru->next = NULL;
 
-    // Logika Priority Queue (Darurat ditaruh di depan)
     if (head == NULL || p.prioritas < head->data.prioritas) {
-        newNode->next = head;
-        head = newNode;
+        pasienBaru->next = head;
+        head = pasienBaru;
     } else {
-        Node* temp = head;
+        AntreanPasien* temp = head;
         while (temp->next != NULL && temp->next->data.prioritas <= p.prioritas) {
             temp = temp->next;
         }
-        newNode->next = temp->next;
-        temp->next = newNode;
+        pasienBaru->next = temp->next;
+        temp->next = pasienBaru;
     }
     jumlahAntrean++;
-    cout << "Pasien berhasil masuk antrean! Estimasi menunggu: " << hitungWaktuTunggu(jumlahAntrean - 1) << " menit.\n";
+    cout << "\n[!] Pasien berhasil masuk antrean.\n";
+    cout << "[!] Silakan cek Menu 2 untuk melihat detail estimasi waktu panggil.\n";
+}
+
+void tampilkanAntrean() {
+    cout << "\n--- ANTREAN SAAT INI ---\n";
+    if (head == NULL) {
+        cout << "Antrean kosong. Tidak ada pasien.\n";
+        return;
+    }
+    
+    AntreanPasien* temp = head;
+    int posisi = 0; 
+    
+    while (temp != NULL) {
+        string prioritas = (temp->data.prioritas == 1) ? "[DARURAT]" : "[REGULER]";
+        
+        int waktuTunggu = hitungWaktuTunggu(posisi);
+        
+        cout << posisi + 1 << ". " << prioritas << " " << temp->data.nama 
+             << " (" << temp->data.penyakit << ")";
+             
+        if (posisi == 0) {
+            cout << " -> Giliran saat ini\n";
+        } else {
+            cout << " -> Estimasi tunggu: " << waktuTunggu << " menit\n";
+        }
+        
+        temp = temp->next;
+        posisi++;
+    }
 }
 
 void prosesPasien() {
@@ -130,46 +139,40 @@ void prosesPasien() {
         return;
     }
     
-    Node* temp = head;
+    AntreanPasien* temp = head;
     Pasien p = temp->data;
-    head = head->next; // Geser head ke antrean berikutnya
-    delete temp; // Dealokasi memori
+    head = head->next;
+    delete temp;
     
     jumlahAntrean--;
     
-    // Simpan ke array database dan file
     if(jumlahDB < MAX_DB) {
         databasePasien[jumlahDB] = p;
         jumlahDB++;
         simpanKeFile(p);
     }
     
-    cout << "\nPasien " << p.nama << " telah selesai diperiksa dan disimpan ke rekam medis.\n";
+    cout << "\n[SUKSES] Pasien " << p.nama << " telah selesai diperiksa.\n";
+    cout << "Data rekam medis berhasil diarsipkan ke database.\n";
 }
 
-
-// ==========================================
 // 7. SORTING (Bubble Sort)
-// ==========================================
+
 void urutkanDatabase() {
-    // Mengurutkan database array berdasarkan NIK (Ascending)
     for (int i = 0; i < jumlahDB - 1; i++) {
         for (int j = 0; j < jumlahDB - i - 1; j++) {
             if (databasePasien[j].nik > databasePasien[j+1].nik) {
-                // Tukar (Swap)
                 Pasien temp = databasePasien[j];
                 databasePasien[j] = databasePasien[j+1];
                 databasePasien[j+1] = temp;
             }
         }
     }
-    cout << "\nDatabase berhasil diurutkan berdasarkan NIK.\n";
+    cout << "\n[SUKSES] Database berhasil diurutkan berdasarkan NIK.\n";
 }
 
-
-// ==========================================
 // 8. SEARCHING (Sequential Search)
-// ==========================================
+
 void cariRekamMedis() {
     string targetNIK;
     cout << "\nMasukkan NIK Pasien yang dicari: ";
@@ -205,28 +208,7 @@ void tampilkanDatabase() {
     }
 }
 
-void tampilkanAntrean() {
-    cout << "\n--- ANTREAN SAAT INI ---\n";
-    if (head == NULL) {
-        cout << "Antrean kosong.\n";
-        return;
-    }
-    Node* temp = head;
-    int no = 1;
-    while (temp != NULL) {
-        string prioritas = (temp->data.prioritas == 1) ? "[DARURAT]" : "[Reguler]";
-        cout << no << ". " << prioritas << " " << temp->data.nama << " - " << temp->data.penyakit << "\n";
-        temp = temp->next;
-        no++;
-    }
-}
-
-
-// ==========================================
-// MAIN FUNCTION (Menu Utama)
-// ==========================================
 int main() {
-    // Memuat data dari file saat program pertama kali dijalankan
     bacaFileDatabase();
     
     int pilihan;
